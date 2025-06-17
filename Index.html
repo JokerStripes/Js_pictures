@@ -1,1 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Text to Image (Free)</title>
+</head>
+<body>
+  <h1>AI Image Generator</h1>
+  <textarea id="prompt" rows="4" cols="50" placeholder="Describe an image..."></textarea><br>
+  <button onclick="generate()">Generate Image</button>
+  <p id="status"></p>
+  <img id="result" style="max-width:100%; display:none;" />
 
+  <script>
+    async function generate() {
+      const prompt = document.getElementById('prompt').value.trim();
+      const status = document.getElementById('status');
+      const img = document.getElementById('result');
+      if (!prompt) return alert("Enter a prompt");
+
+      status.textContent = 'Generating image...';
+      img.style.display = 'none';
+
+      try {
+        const res = await fetch('https://images.jokerstripes.workers.dev/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+
+        const data = await res.json();
+        if (data.image) {
+          img.src = data.image;
+          img.style.display = 'block';
+          status.textContent = 'Image ready!';
+        } else {
+          status.textContent = 'Failed: ' + (data.error || 'Unknown error');
+        }
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
