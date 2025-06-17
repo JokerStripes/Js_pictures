@@ -18,55 +18,47 @@
   <div id="preview"></div>
 
   <script>
-    document.getElementById('go').onclick = async () => {
-      const prompt = document.getElementById('prompt').value.trim();
-      const status = document.getElementById('status');
-      const preview = document.getElementById('preview');
-      preview.innerHTML = '';
-      if (!prompt) {
-        status.textContent = 'Please enter a prompt';
-        return;
+  document.getElementById('go').onclick = async () => {
+    const prompt = document.getElementById('prompt').value.trim();
+    const status = document.getElementById('status');
+    const preview = document.getElementById('preview');
+    preview.innerHTML = '';
+    if (!prompt) {
+      status.textContent = 'Please enter a prompt';
+      return;
+    }
+
+    status.textContent = 'Generating… this can take 10–30 s.';
+
+    const ENDPOINT = 'https://stablehorde.net/api/latest/generate/sync';
+    // ← swap in Cloudflare Worker CORS proxy:
+    const PROXY    = 'https://test.cors.workers.dev/?';
+
+    try {
+      const res = await fetch(PROXY + encodeURIComponent(ENDPOINT), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt,
+          params: { n:1, width:512, height:512, steps:30, scale:7 },
+          api_key: '0000000000'
+        })
+      });
+      const json = await res.json();
+      if (json.error) {
+        status.textContent = 'Error: ' + json.error;
+      } else if (json.images?.length) {
+        const img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + json.images[0];
+        preview.appendChild(img);
+        status.textContent = '';
+      } else {
+        status.textContent = 'No image returned.';
       }
-
-      status.textContent = 'Generating… this can take 10–30 s.';
-
-      // 1) The real Stable Horde endpoint
-      const ENDPOINT = 'https://stablehorde.net/api/latest/generate/sync';
-      // 2) Prepend the corsproxy.io URL (it will add the CORS headers)
-      const PROXY    = 'https://corsproxy.io/?';
-
-      try {
-        const res = await fetch(PROXY + encodeURIComponent(ENDPOINT), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: prompt,
-            params: {
-              n:      1,
-              width:  512,
-              height: 512,
-              steps:  30,
-              scale:  7
-            },
-            api_key: '0000000000'
-          })
-        });
-
-        const json = await res.json();
-        if (json.error) {
-          status.textContent = 'Error: ' + json.error;
-        } else if (json.images && json.images.length) {
-          const img = document.createElement('img');
-          img.src = 'data:image/png;base64,' + json.images[0];
-          preview.appendChild(img);
-          status.textContent = '';
-        } else {
-          status.textContent = 'No image returned.';
-        }
-      } catch (e) {
-        status.textContent = 'Network error: ' + e.message;
-      }
-    };
-  </script>
+    } catch (e) {
+      status.textContent = 'Network error: ' + e.message;
+    }
+  };
+</script>
 </body>
 </html>
