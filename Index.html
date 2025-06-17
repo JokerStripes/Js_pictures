@@ -3,40 +3,33 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Test Worker Echo</title>
+<title>AI Image Test</title>
 </head>
 <body>
-  <h1>Test Worker Echo</h1>
-  <input type="text" id="prompt" placeholder="Type something" style="width: 80%;" />
-  <button id="send">Send to Worker</button>
-  <pre id="output" style="background:#eee; padding:1rem; margin-top:1rem;"></pre>
+<h1>Test Worker POST</h1>
+<textarea id="prompt" rows="4" cols="50" placeholder="Type prompt here"></textarea><br />
+<button id="sendBtn">Send to Worker</button>
+<pre id="output"></pre>
 
 <script>
-  document.getElementById('send').addEventListener('click', async () => {
-    const prompt = document.getElementById('prompt').value.trim();
-    if (!prompt) {
-      alert('Please enter a prompt');
-      return;
-    }
-    const output = document.getElementById('output');
-    output.textContent = 'Sending...';
-
-    try {
-      const res = await fetch('https://images.jokerstripes.workers.dev/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      });
-      if (!res.ok) {
-        output.textContent = `Error ${res.status}: ` + await res.text();
-        return;
-      }
-      const data = await res.json();
-      output.textContent = JSON.stringify(data, null, 2);
-    } catch (e) {
-      output.textContent = 'Fetch error: ' + e.message;
-    }
-  });
+document.getElementById('sendBtn').onclick = async () => {
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!prompt) return alert('Enter a prompt');
+  document.getElementById('output').textContent = 'Generating...';
+  try {
+    const res = await fetch('https://images.jokerstripes.workers.dev/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      mode: 'cors',
+      body: JSON.stringify({ prompt }),
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const data = await res.json();
+    document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    document.getElementById('output').textContent = 'Error: ' + err.message;
+  }
+};
 </script>
 </body>
 </html>
