@@ -2,31 +2,49 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Text to Image (Free)</title>
+  <title>AI Image Generator</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; background: #111; color: #fff; }
+    input, select, button { margin: 10px; padding: 10px; font-size: 16px; }
+    img { margin-top: 20px; max-width: 90vw; max-height: 60vh; display: none; }
+    #spinner { font-size: 18px; margin-top: 15px; display: none; }
+  </style>
 </head>
 <body>
-  <h1>AI Image Generator</h1>
-  <textarea id="prompt" rows="4" cols="50" placeholder="Describe an image..."></textarea><br>
-  <button onclick="generate()">Generate Image</button>
-  <p id="status"></p>
-  <img id="result" style="max-width:100%; display:none;" />
+  <h1>Generate AI Image</h1>
+  <input type="text" id="prompt" placeholder="Enter your prompt" />
+  <select id="model">
+    <option value="dreamshaper">Dreamshaper</option>
+    <option value="realistic_vision">Realistic Vision</option>
+    <option value="anything-v4.5">Anything v4.5</option>
+    <option value="deliberate">Deliberate</option>
+    <option value="sdxl">SDXL</option>
+  </select>
+  <button onclick="generate()">Generate</button>
+  <div id="spinner">🌀 searching the depths of uranus for some acid</div>
+  <div id="status"></div>
+  <img id="result" src="">
+</body>
 
- <script>
+<script>
   async function generate() {
     const prompt = document.getElementById('prompt').value.trim();
+    const model = document.getElementById('model').value;
     const status = document.getElementById('status');
+    const spinner = document.getElementById('spinner');
     const img = document.getElementById('result');
 
     if (!prompt) return alert("Enter a prompt");
 
-    status.textContent = 'Generating image...';
+    status.textContent = '';
+    spinner.style.display = 'block';
     img.style.display = 'none';
 
     try {
       const res = await fetch('https://images.jokerstripes.workers.dev/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, model })
       });
 
       const data = await res.json();
@@ -36,13 +54,14 @@
         img.style.display = 'block';
         status.textContent = 'Image generated!';
       } else {
-        status.textContent = 'Failed: Invalid image response';
+        status.textContent = 'Failed: Invalid image URL';
         console.log('Returned data:', data);
       }
     } catch (e) {
       status.textContent = 'Error: ' + e.message;
+    } finally {
+      spinner.style.display = 'none';
     }
   }
 </script>
-</body>
 </html>
