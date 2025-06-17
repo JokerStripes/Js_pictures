@@ -2,86 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AI Image Generator</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      text-align: center;
       background: red;
-      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2em;
     }
     input, button {
-      font-size: 16px;
       padding: 10px;
+      font-size: 16px;
       width: 60%;
       margin: 10px auto;
       display: block;
-      border: none;
-      border-radius: 5px;
-    }
-    input {
-      color: black;
-    }
-    button {
-      background: white;
-      color: red;
-      cursor: pointer;
-      font-weight: bold;
     }
     img {
       margin-top: 20px;
       max-width: 90%;
-      border-radius: 10px;
-      box-shadow: 0 0 10px white;
     }
   </style>
 </head>
 <body>
-  <h1>Generate an AI Image</h1>
-  <input type="text" id="prompt" placeholder="Describe your image..." />
+  <h1>AI Image Generator</h1>
+  <input id="promptInput" type="text" placeholder="Enter your prompt" />
   <button onclick="generateImage()">Generate</button>
   <p id="status"></p>
-  <img id="output" />
+  <img id="resultImage" src="" alt="Generated image" />
+
   <script>
-    const workerURL = "https://images.jokerstripes.workers.dev/";
-
     async function generateImage() {
-      const prompt = document.getElementById("prompt").value.trim();
-      if (!prompt) return alert("Please enter a description.");
+      const prompt = document.getElementById('promptInput').value;
+      const status = document.getElementById('status');
+      const img = document.getElementById('resultImage');
 
-      document.getElementById("status").textContent = "Generating image...";
-      document.getElementById("output").src = "";
+      status.textContent = 'Generating image...';
+      img.src = '';
 
       try {
-        const response = await fetch(workerURL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt,
-            params: {
-              n: 1,
-              width: 512,
-              height: 512,
-              steps: 30
-            }
-          }),
+        const response = await fetch('https://images.jokerstripes.workers.dev/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
         });
 
-        if (!response.ok) throw new Error("API error");
-
         const data = await response.json();
-        const base64 = data.generations?.[0]?.img;
-
-        if (base64) {
-          document.getElementById("output").src = "data:image/png;base64," + base64;
-          document.getElementById("status").textContent = "Done!";
+        if (data.generations && data.generations[0] && data.generations[0].img) {
+          img.src = "data:image/png;base64," + data.generations[0].img;
+          status.textContent = 'Done!';
         } else {
-          throw new Error("No image returned.");
+          status.textContent = 'No image returned.';
         }
       } catch (err) {
+        status.textContent = 'Error: ' + err.message;
         console.error(err);
-        document.getElementById("status").textContent = "Error: " + err.message;
       }
     }
   </script>
