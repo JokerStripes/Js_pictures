@@ -2,20 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AI Text→Image</title>
+  <title>AI Image Generator</title>
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
-    input, button { font-size: 1rem; padding: 0.5rem; margin-top: 0.5rem; }
+    input, button { font-size: 1rem; padding: 0.5rem; margin-top: 0.5rem; width: 100%; }
     #preview img { max-width: 100%; margin-top: 1rem; border: 1px solid #ccc; }
     #status { margin-top: 1rem; font-style: italic; }
   </style>
 </head>
 <body>
-  <h1>🎨 AI Image Generator</h1>
-  <p>Enter a text prompt to create an image using free AI via Stable Horde.</p>
+  <h1>🎨 Free AI Image Generator</h1>
+  <p>Enter a text prompt and get an image, powered by Stable Horde.</p>
 
-  <input type="text" id="prompt" placeholder="e.g. cyberpunk fox in a forest" size="40">
+  <input type="text" id="prompt" placeholder="e.g. neon jellyfish in space" />
   <button id="go">Generate</button>
+
   <div id="status"></div>
   <div id="preview"></div>
 
@@ -34,7 +35,7 @@
         return;
       }
 
-      status.textContent = 'Generating image…';
+      status.textContent = 'Generating image (please wait 10–30 seconds)…';
 
       try {
         const response = await fetch(workerURL, {
@@ -42,24 +43,31 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: prompt,
-            params: { n: 1, width: 512, height: 512, steps: 30, scale: 7 },
-            api_key: '0000000000'
+            params: {
+              n: 1,
+              width: 512,
+              height: 512,
+              steps: 30,
+              scale: 7
+            },
+            api_key: '0000000000' // anonymous key
           })
         });
 
         if (!response.ok) {
-          status.textContent = `Error: ${response.statusText}`;
+          const text = await response.text();
+          status.textContent = `Error: ${response.status} ${response.statusText}\n${text}`;
           return;
         }
 
         const data = await response.json();
-        if (data.images?.length) {
+        if (data.images && data.images.length > 0) {
           const img = document.createElement('img');
           img.src = 'data:image/png;base64,' + data.images[0];
           preview.appendChild(img);
           status.textContent = '';
         } else {
-          status.textContent = 'No image returned.';
+          status.textContent = 'No image was returned.';
         }
       } catch (err) {
         status.textContent = 'Network error: ' + err.message;
