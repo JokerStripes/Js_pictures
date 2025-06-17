@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>AI Image Generator</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
       text-align: center;
-      background: #1e1e1e;
-      color: #fff;
+      background: red;
+      color: white;
     }
     input, button {
       font-size: 16px;
@@ -17,10 +17,23 @@
       width: 60%;
       margin: 10px auto;
       display: block;
+      border: none;
+      border-radius: 5px;
+    }
+    input {
+      color: black;
+    }
+    button {
+      background: white;
+      color: red;
+      cursor: pointer;
+      font-weight: bold;
     }
     img {
       margin-top: 20px;
       max-width: 90%;
+      border-radius: 10px;
+      box-shadow: 0 0 10px white;
     }
   </style>
 </head>
@@ -30,7 +43,6 @@
   <button onclick="generateImage()">Generate</button>
   <p id="status"></p>
   <img id="output" />
-
   <script>
     const workerURL = "https://images.jokerstripes.workers.dev/";
 
