@@ -55,13 +55,18 @@
 
       status.textContent = 'Generating… (this can take 10–30 s)';
       
+      // Point this at your newly deployed Worker
+      const PROXY = 'https://images.jokerstripes.workers.dev';
       const ENDPOINT = 'https://stablehorde.net/api/latest/generate/sync';
-      const PROXY    = 'https://test.cors.workers.dev/?';
 
       try {
-        const res = await fetch(PROXY + encodeURIComponent(ENDPOINT), {
+        const res = await fetch(PROXY, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            // tell the worker where to forward
+            'X-Proxy-URL': ENDPOINT
+          },
           body: JSON.stringify({
             prompt: prompt,
             params: {
