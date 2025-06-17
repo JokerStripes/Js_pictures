@@ -3,76 +3,38 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AI Image Generator</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
-  label, button { display: block; margin-top: 1rem; }
-  img { margin-top: 1rem; max-width: 100%; height: auto; border: 1px solid #ccc; }
-  #status { margin-top: 1rem; font-weight: bold; }
-  #error { margin-top: 1rem; color: red; white-space: pre-wrap; }
-</style>
+<title>Test Worker Echo</title>
 </head>
 <body>
-  <h1>AI Image Generator</h1>
-  <label for="prompt">Enter text prompt:</label>
-  <input type="text" id="prompt" placeholder="A fantasy forest at sunset" style="width:100%;" />
-  <button id="generate">Generate Image</button>
-  <div id="status"></div>
-  <div id="error"></div>
-  <img id="resultImage" src="" alt="" hidden />
-  
-<script>
-  const button = document.getElementById('generate');
-  const promptInput = document.getElementById('prompt');
-  const statusDiv = document.getElementById('status');
-  const errorDiv = document.getElementById('error');
-  const resultImage = document.getElementById('resultImage');
+  <h1>Test Worker Echo</h1>
+  <input type="text" id="prompt" placeholder="Type something" style="width: 80%;" />
+  <button id="send">Send to Worker</button>
+  <pre id="output" style="background:#eee; padding:1rem; margin-top:1rem;"></pre>
 
-  button.addEventListener('click', async () => {
-    const prompt = promptInput.value.trim();
+<script>
+  document.getElementById('send').addEventListener('click', async () => {
+    const prompt = document.getElementById('prompt').value.trim();
     if (!prompt) {
-      errorDiv.textContent = 'Please enter a prompt.';
+      alert('Please enter a prompt');
       return;
     }
-    errorDiv.textContent = '';
-    statusDiv.textContent = 'Generating image... Please wait.';
-    resultImage.hidden = true;
-    resultImage.src = '';
+    const output = document.getElementById('output');
+    output.textContent = 'Sending...';
 
     try {
-      const response = await fetch('https://images.jokerstripes.workers.dev/', {
+      const res = await fetch('https://images.jokerstripes.workers.dev/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        errorDiv.textContent = `Server error: ${response.status}\n${errorText}`;
-        statusDiv.textContent = '';
+      if (!res.ok) {
+        output.textContent = `Error ${res.status}: ` + await res.text();
         return;
       }
-
-      const data = await response.json();
-
-      if (data.error) {
-        errorDiv.textContent = `API error: ${data.error}\n${data.details || ''}`;
-        statusDiv.textContent = '';
-        return;
-      }
-
-      if (data.generations && data.generations[0] && data.generations[0].img) {
-        const imgBase64 = data.generations[0].img;
-        resultImage.src = 'data:image/png;base64,' + imgBase64;
-        resultImage.hidden = false;
-        statusDiv.textContent = 'Image generated successfully!';
-      } else {
-        errorDiv.textContent = 'No image data returned.';
-        statusDiv.textContent = '';
-      }
-    } catch (err) {
-      errorDiv.textContent = 'Fetch error: ' + err.message;
-      statusDiv.textContent = '';
+      const data = await res.json();
+      output.textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      output.textContent = 'Fetch error: ' + e.message;
     }
   });
 </script>
