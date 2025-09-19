@@ -1,146 +1,166 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Educational PK Quick Calculator</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    body { font-family: Arial, Helvetica, sans-serif; margin:18px; background:#f7fbff; color:#111; }
-    .card { background:#fff; padding:14px; border-radius:8px; box-shadow:0 2px 8px rgba(20,40,60,0.06); margin-bottom:14px; }
-    label { display:block; margin-bottom:6px; font-weight:600; }
-    input[type="number"] { padding:8px; width:120px; border-radius:6px; border:1px solid #d6e3ff; }
-    button { margin-left:8px; padding:8px 12px; background:#2b7cff; color:white; border:none; border-radius:6px; cursor:pointer; }
-    #results { margin-top:10px; }
-    canvas { width:100%; height:320px; }
-    small.note { color:#555; display:block; margin-top:6px; }
-  </style>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<meta charset="utf-8" />
+<title>PK Visual — Educational (Classroom)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#fbfdff;color:#111;margin:18px}
+  .card{background:#fff;padding:14px;border-radius:8px;box-shadow:0 2px 10px rgba(30,60,90,0.06);margin-bottom:14px}
+  label{font-weight:600;display:block;margin-bottom:6px}
+  input[type=number]{padding:8px;border-radius:6px;border:1px solid #dfeeff;width:120px}
+  button{padding:8px 12px;background:#2b7cff;color:#fff;border:none;border-radius:6px;cursor:pointer}
+  .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  canvas{width:100%;height:360px}
+  .note{font-size:0.9rem;color:#555;margin-top:8px}
+</style>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <h2>PK Quick — Educational</h2>
+  <h2>PK Visual — Educational (Classroom)</h2>
 
   <div class="card">
-    <strong>Instructions (educational):</strong>
-    <p>Enter the <em>amount taken</em> (grams). The page plots parent and metabolite concentrations (μg/L) and shows peak times and peak concentrations. <strong>No detection-limit or time-to-undetectable calculations are provided.</strong></p>
+    <strong>Purpose:</strong> visual classroom tool to illustrate parent→metabolite kinetics. Students estimate crossing points visually; the page does not compute detection times. <br>
+    <small class="note">Fixed model: parent t½=1.5 h, metabolite fraction=0.40, metabolite t½=12 h, distribution volume=5 L.</small>
   </div>
 
   <div class="card">
-    <label for="dose">Amount taken (grams)</label>
-    <input id="dose" type="number" min="0" step="0.01" value="1.00">
-    <button id="goBtn">Compute</button>
+    <div class="controls">
+      <div>
+        <label for="doseIn">Amount taken (g)</label>
+        <input id="doseIn" type="number" min="0" step="0.01" value="1.00">
+      </div>
 
-    <div id="results" style="margin-top:12px;">
-      <div id="peakParent"></div>
-      <div id="peakMet"></div>
-      <small class="note">Fixed model: parent t½ = 1.5 h; metabolite fraction = 0.40; metabolite t½ = 12 h; volume = 5 L.</small>
+      <div>
+        <label for="showRef">Show reference line (threshold)</label>
+        <input id="showRef" type="checkbox">
+      </div>
+
+      <div>
+        <label for="refVal">Reference value (μg/L) — for teacher to set</label>
+        <input id="refVal" type="number" min="0" step="1" value="50">
+      </div>
+
+      <div style="align-self:flex-end">
+        <button id="renderBtn">Render graph</button>
+      </div>
     </div>
+
+    <div class="note">Instructions for instructors: set a reference line (e.g., a cutoff) and ask students to estimate the hour where the metabolite curve visually crosses it. The chart intentionally does not compute that time numerically.</div>
   </div>
 
   <div class="card">
-    <canvas id="chart"></canvas>
+    <canvas id="chartCanvas"></canvas>
   </div>
 
 <script>
 (function(){
-  // fixed parameters (educational)
-  const t12_parent = 1.5;   // hours
-  const t12_met = 12.0;     // hours
-  const frac = 0.40;        // fraction converted to metabolite
-  const vol_L = 5.0;        // distribution volume (L)
-  const t_max = 200;        // hours to simulate
-  const n_points = 400;
+  // Fixed educational parameters
+  const t12_parent = 1.5;
+  const t12_met = 12.0;
+  const frac = 0.40;
+  const vol = 5.0; // L
+  const tmax = 200;
+  const npoints = 600;
 
   function ln2(){ return Math.log(2); }
-  function kp() { return ln2()/t12_parent; }
-  function km() { return ln2()/t12_met; }
+  const kp = ln2() / t12_parent;
+  const km = ln2() / t12_met;
 
-  function compute(dose_g){
+  function computeCurves(dose_g){
     const A0 = dose_g * 1e6; // ug
-    const kpv = kp();
-    const kmv = km();
-    const times = [];
-    const parent = [];
-    const met = [];
-
-    for (let i=0;i<=n_points;i++){
-      const t = (i/n_points)*t_max;
-      times.push(t);
-      const Ap = A0 * Math.exp(-kpv * t);
-      const Cp = Ap / vol_L;
+    const times = new Array(npoints+1);
+    const parent = new Array(npoints+1);
+    const met = new Array(npoints+1);
+    for(let i=0;i<=npoints;i++){
+      const t = (i/npoints)*tmax;
+      times[i] = t;
+      const Ap = A0 * Math.exp(-kp * t);
+      parent[i] = Ap / vol;
       let M = 0;
-      if (Math.abs(kmv - kpv) > 1e-12) {
-        M = frac * A0 * (kpv/(kmv - kpv)) * (Math.exp(-kpv * t) - Math.exp(-kmv * t));
+      if (Math.abs(km - kp) > 1e-12) {
+        M = frac * A0 * (kp/(km - kp)) * (Math.exp(-kp*t) - Math.exp(-km*t));
       } else {
-        // fallback (rare)
-        M = frac * A0 * kpv * t * Math.exp(-kpv * t);
+        M = frac * A0 * kp * t * Math.exp(-kp*t);
       }
-      const Cm = M / vol_L;
-      parent.push(Cp);
-      met.push(Cm);
+      met[i] = M / vol;
     }
-
-    // find peaks
-    let peakP = {val: -1, t: 0};
-    let peakM = {val: -1, t: 0};
-    for (let i=0;i<times.length;i++){
-      if (parent[i] > peakP.val){ peakP.val = parent[i]; peakP.t = times[i]; }
-      if (met[i] > peakM.val){ peakM.val = met[i]; peakM.t = times[i]; }
-    }
-
-    return { times, parent, met, peakP, peakM };
+    return {times, parent, met};
   }
 
-  // Setup chart
-  const ctx = document.getElementById('chart').getContext('2d');
-  const chart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: [], datasets: [
-      { label: 'Parent (μg/L)', data: [], borderColor:'#2b7cff', fill:false, tension:0.12, pointRadius:0 },
-      { label: 'Metabolite (μg/L)', data: [], borderColor:'#d44', fill:false, tension:0.12, borderDash:[6,4], pointRadius:0 }
+  // Create chart
+  const ctx = document.getElementById('chartCanvas').getContext('2d');
+  const config = {
+    type:'line',
+    data: { labels: [], datasets:[
+      {label:'Parent (μg/L)', data:[], borderColor:'#2b7cff', pointRadius:0, tension:0.12},
+      {label:'Metabolite (μg/L)', data:[], borderColor:'#d44', pointRadius:0, tension:0.12, borderDash:[6,4]}
     ]},
-    options: {
+    options:{
       responsive:true,
       maintainAspectRatio:false,
-      scales: {
-        x: { title: { display:true, text:'Time (h)'} },
-        y: { title: { display:true, text:'Concentration (μg/L)'}, beginAtZero:true, type:'linear' }
+      scales:{
+        x:{ title:{display:true, text:'Time (hours)'} },
+        y:{ title:{display:true, text:'Concentration (μg/L)'}, beginAtZero:true, type:'linear' }
       },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: function(ctx) {
-              return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toExponential(3) + ' μg/L';
-            }
-          }
-        },
-        legend: { position:'top' }
+      plugins:{
+        legend:{position:'top'},
+        tooltip:{callbacks:{label:function(ctx){
+          return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toExponential(3) + ' μg/L';
+        }}}
       }
     }
-  });
+  };
+  const chart = new Chart(ctx, config);
 
-  function render(dose){
-    const data = compute(dose);
-    chart.data.labels = data.times.map(t => t.toFixed(1));
+  const doseIn = document.getElementById('doseIn');
+  const showRef = document.getElementById('showRef');
+  const refVal = document.getElementById('refVal');
+  const renderBtn = document.getElementById('renderBtn');
+
+  function render(){
+    const dose = parseFloat(doseIn.value) || 0;
+    const data = computeCurves(dose);
+    chart.data.labels = data.times.map(t=>t.toFixed(1));
     chart.data.datasets[0].data = data.parent;
     chart.data.datasets[1].data = data.met;
+
+    // toggle reference line plugin: we draw a horizontal annotation by adding a dataset that is not in legend
+    const show = showRef.checked;
+    const ref = parseFloat(refVal.value) || 0;
+
+    // remove any previous ref dataset
+    chart.data.datasets = chart.data.datasets.filter(ds => !ds._isRefLine);
+
+    if (show && ref >= 0) {
+      // build array same length as labels with constant value ref
+      const refArray = new Array(data.times.length).fill(ref);
+      chart.data.datasets.push({
+        label: 'Reference line (teacher set)',
+        data: refArray,
+        borderColor: '#222',
+        borderWidth: 1,
+        pointRadius: 0,
+        borderDash: [4,4],
+        fill: false,
+        _isRefLine: true,
+        // hide in legend so students don't treat it as a curve; show label in tooltip only if needed
+        hidden: false
+      });
+    }
+
+    // update y-scale to fit data nicely
+    const allVals = data.parent.concat(data.met);
+    const maxV = Math.max(...allVals, show ? ref : 0);
+    chart.options.scales.y.max = Math.ceil(maxV * 1.1);
     chart.update();
-
-    document.getElementById('peakParent').innerHTML =
-      `<strong>Parent peak:</strong> ${data.peakP.val.toFixed(0)} μg/L at ${data.peakP.t.toFixed(2)} h`;
-
-    document.getElementById('peakMet').innerHTML =
-      `<strong>Metabolite peak:</strong> ${data.peakM.val.toFixed(0)} μg/L at ${data.peakM.t.toFixed(2)} h`;
   }
 
-  // initial
-  render(parseFloat(document.getElementById('dose').value) || 1.0);
+  renderBtn.addEventListener('click', render);
 
-  document.getElementById('goBtn').addEventListener('click', function(){
-    const v = parseFloat(document.getElementById('dose').value);
-    if (!isFinite(v) || v < 0) { alert('Enter a valid non-negative amount in grams.'); return; }
-    render(v);
-  });
+  // initial render
+  render();
 
 })();
 </script>
