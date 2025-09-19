@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>PK Half-life Lists — Until 1 µg</title>
+  <title>PK Half-life Lists — Parent & Metabolite until 1 µg</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body { font-family: Arial, Helvetica, sans-serif; margin:18px; background:#f8fbff; color:#111; }
@@ -17,11 +17,11 @@
   </style>
 </head>
 <body>
-  <h2>PK Half-life Lists — Until Parent < 1 µg</h2>
+  <h2>PK Half-life Lists — Until Both < 1 µg</h2>
 
   <div class="card">
     <strong>Instructions:</strong>
-    <p class="small">Enter dose in grams. The table shows values at each parent half-life (1.5 h) until the parent drug amount falls below 1 µg. Metabolite levels are shown alongside. Model is fixed: parent t½ = 1.5 h, metabolite fraction = 0.40, metabolite t½ = 12 h, distribution volume = 5 L.</p>
+    <p class="small">Enter dose in grams. The table shows values at each parent half-life (1.5 h) until both the parent drug and the metabolite are below 1 µg. Model is fixed: parent t½ = 1.5 h, metabolite fraction = 0.40, metabolite t½ = 12 h, distribution volume = 5 L.</p>
   </div>
 
   <div class="card">
@@ -70,17 +70,18 @@
       n++;
       const t=n*t12_parent;
       const p=parentMass(A0,t);
-      if (p<1) break; // stop when parent <1 µg
       const m=metMass(A0,t);
       rows.push({
         time:t, 
         parent:p, parentC:p/vol_L,
         met:m, metC:m/vol_L
       });
-      if (n>200) break; // safety cap
+      // stop when both <1 µg
+      if (p<1 && m<1) break;
+      if (n>500) break; // safety cap
     }
 
-    let html='<div class="small">Dose: '+dose_g+' g ('+A0.toFixed(0)+' µg). Stops when parent <1 µg.</div>';
+    let html='<div class="small">Dose: '+dose_g+' g ('+A0.toFixed(0)+' µg). Stops when both parent and metabolite <1 µg.</div>';
     html+='<table><thead><tr><th style="text-align:left">Time (h)</th><th>Parent mass (µg)</th><th>Parent conc (µg/L)</th><th>Metab mass (µg)</th><th>Metab conc (µg/L)</th></tr></thead><tbody>';
     for (const r of rows){
       html+='<tr><td style="text-align:left">'+r.time.toFixed(2)+'</td><td>'+fmt(r.parent)+'</td><td>'+fmt(r.parentC)+'</td><td>'+fmt(r.met)+'</td><td>'+fmt(r.metC)+'</td></tr>';
