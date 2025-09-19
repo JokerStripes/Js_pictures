@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Simple PK Simulator — Parent → Metabolite</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background:#fafafa; color:#111; }
+    .card { background:white; border-radius:8px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:16px;}
+    label { display:block; margin-top:8px; font-size:0.95rem; }
+    input[type="number"] { width:120px; padding:6px; margin-top:4px; }
+    .row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+    button { margin-top:12px; padding:8px 14px; border:none; background:#2b7cff; color:white; border-radius:6px; cursor:pointer; }
+    small.note { color:#666; display:block; margin-top:8px; }
+    canvas { max-width:100%; height:360px; }
+    footer { font-size:0.85rem; color:#666; margin-top:12px; }
+  </style>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <h2>Educational PK Simulator — Parent → Metabolite</h2>
+  <div class="card">
+    <strong>Purpose:</strong> Illustrate how a single dose of a parent drug generates a metabolite over time (first-order kinetics). <br>
+    <small class="note">This tool is for educational and illustrative use only. It is <em>not</em> intended to help anyone evade testing, law enforcement, or clinical guidance.</small>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>Parent dose (grams)</label>
+        <input id="dose_g" type="number" min="0" step="0.01" value="1.00">
+      </div>
+      <div>
+        <label>Parent half-life (hours)</label>
+        <input id="t12_parent" type="number" min="0.01" step="0.01" value="1.5">
+      </div>
+      <div>
+        <label>Fraction converted to metabolite (0–1)</label>
+        <input id="frac" type="number" min="0" max="1" step="0.01" value="0.40">
+      </div>
+      <div>
+        <label>Metabolite half-life (hours)</label>
+        <input id="t12_met" type="number" min="0.1" step="0.1" value="12">
+      </div>
+      <div>
+        <label>Distribution volume (L)</label>
+        <input id="vol_L" type="number" min="0.1" step="0.1" value="5">
+      </div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <label>Simulation horizon (hours)</label>
+      <input id="t_max" type="number" min="1" step="1" value="200">
+      <label style="display:inline-block; margin-left:16px;">Points</label>
+      <input id="n_points" type="number" min="10" step="1" value="500">
+    </div>
+
+    <div>
+      <button id="updateBtn">Update plot</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <canvas id="pkChart"></canvas>
+  </div>
+
+  <div class="card" id="resultsCard">
+    <strong>Notes / guidance</strong>
+    <ul>
+      <li>Parent and metabolite curves assume a one-compartment model with first-order elimination and first-order formation proportional to parent elimination.</li>
+      <li>Concentrations are shown in μg/L (micrograms per liter). Dose is converted into μg (1 g = 1,000,000 μg).</li>
+      <li>Default distribution volume is <em>5 L</em> (a simple "standard human" blood/plasma-like volume). Change it if you want a different assumption.</li>
+      <li>This simulator does not compute or report detection-window times or advice about avoiding tests.</li>
+    </ul>
+  </div>
+
+  <footer>
+    If you want, I can add export functionality (CSV of the curves) or a printable summary page — for educational use only.
+  </footer>
+
+<script>
+(function(){
+  // helper
+  function ln2() { return Math.log(2); }
+
+  // Model functions
+  function computeCurves(params) {
+    // params: {dose_g, t12_parent, t12_met, frac, vol_L, t_max, n}
+    const A0_ug = params.dose_g * 1e6; // convert g to micrograms
+    const kp = ln2() / params.t12_parent;
+    const km = ln2() / params.t12_met;
+    const f = params.frac;
+    const V = params.vol_L;
+
+    const times = [];
+    const parentConc = [];
+    const metConc = [];
+
+    for (let i=0; i<=params.n; i++){
+      const t = (i/params.n) * params.t_max;
+      times.push(t);
+
+      // Parent amount (ug)
+      const Ap = A0_ug * Math.exp(-kp * t);
+      const Cp = Ap / V; // ug/L
+
+      // Metabolite amount using analytic solution:
+      // M(t) = f*A0 * (kp/(km - kp)) * (exp(-kp t) - exp(-km t))
+      let M = 0;
+      if (Math.abs(km - kp) > 1e-12) {
+        M = f * A0_ug * (kp/(km - kp)) * (Math.exp(-kp * t) - Math.exp(-km * t));
+      } else {
+        // kp ~ km fallback: integrate numerically or use limit; use small-series approx
+        M = f * A0_ug * kp * t * Math.exp(-kp * t); 
+      }
+      const Cm = M / V;
+
+      parentConc.push(Cp);
+      metConc.push(Cm);
+    }
+
+    return { times, parentConc, metConc };
+  }
+
+  // Chart setup
+  const ctx = document.getElementById('pkChart').getContext('2d');
+  const chartConfig = {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Parent (μg/L)', data: [], borderWidth: 2, pointRadius:0, tension:0.18, borderDash:[] },
+        { label: 'Metabolite (μg/L)', data: [], borderWidth: 2, pointRadius:0, tension:0.18, borderDash:[6,3] },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: 'Time (hours)' } },
+        y: { title: { display: true, text: 'Concentration (μg/L)' }, type: 'logarithmic', min: 0.1 }
+      },
+      plugins: {
+        tooltip: {
+          intersect: false,
+          mode: 'index',
+          callbacks: {
+            label: function(ctx) {
+              return ctx.dataset.label + ': ' + Number(ctx.parsed.y).toExponential(3) + ' μg/L';
+            }
+          }
+        },
+        legend: { position: 'top' }
+      },
+    }
+  };
+  const pkChart = new Chart(ctx, chartConfig);
+
+  // UI elements
+  const doseEl = document.getElementById('dose_g');
+  const t12pEl = document.getElementById('t12_parent');
+  const fracEl = document.getElementById('frac');
+  const t12mEl = document.getElementById('t12_met');
+  const volEl = document.getElementById('vol_L');
+  const tmaxEl = document.getElementById('t_max');
+  const nptsEl = document.getElementById('n_points');
+  const btn = document.getElementById('updateBtn');
+
+  function updatePlot() {
+    const params = {
+      dose_g: parseFloat(doseEl.value) || 1.0,
+      t12_parent: parseFloat(t12pEl.value) || 1.5,
+      frac: parseFloat(fracEl.value) || 0.4,
+      t12_met: parseFloat(t12mEl.value) || 12,
+      vol_L: parseFloat(volEl.value) || 5,
+      t_max: parseFloat(tmaxEl.value) || 200,
+      n: parseInt(nptsEl.value) || 400
+    };
+
+    // basic validation
+    if (params.frac < 0 || params.frac > 1) {
+      alert('Fraction must be between 0 and 1.');
+      return;
+    }
+    if (params.t12_parent <= 0 || params.t12_met <= 0 || params.vol_L <= 0 || params.t_max <= 0) {
+      alert('Half-lives, volume, and t_max must be positive.');
+      return;
+    }
+
+    const curves = computeCurves(params);
+    // update chart
+    pkChart.data.labels = curves.times.map(t => t.toFixed(2));
+    pkChart.data.datasets[0].data = curves.parentConc;
+    pkChart.data.datasets[1].data = curves.metConc;
+
+    // styling adjustments: color choices left to Chart.js defaults
+    pkChart.data.datasets[0].borderColor = 'rgba(60,120,220,0.95)';
+    pkChart.data.datasets[1].borderColor = 'rgba(200,80,80,0.95)';
+
+    // if all concentrations are tiny > y-log scale needs min
+    let minY = Math.min(...curves.parentConc.filter(v=>v>0).concat(...curves.metConc.filter(v=>v>0)));
+    if (!isFinite(minY) || minY <= 0) minY = 0.1;
+    pkChart.options.scales.y.min = Math.max(0.0001, minY * 0.01);
+    pkChart.update();
+  }
+
+  btn.addEventListener('click', updatePlot);
+
+  // initial plot
+  updatePlot();
+
+})();
+</script>
+</body>
+</html>
